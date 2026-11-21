@@ -2,7 +2,7 @@
   "name": "comfy-ae-bridge",
   "displayName": "Comfy AE Bridge",
   "description": "One local server: official Comfy Cloud generation plus Adobe After Effects. No panel and no second connector.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": {
     "name": "JP Costa",

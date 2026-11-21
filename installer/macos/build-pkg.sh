@@ -39,7 +39,7 @@ pkgbuild \
   --root "$PAYLOAD" \
   --scripts "$SCRIPTS" \
   --identifier org.comfy.aemcp \
-  --version 0.1.0 \
+  --version 0.1.1 \
   --install-location "/Library/Application Support/Adobe/CEP/extensions/com.comfy.aemcp" \
   "$ROOT/dist/ComfyAEBridge-unsigned.pkg"
 

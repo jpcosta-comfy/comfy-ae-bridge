@@ -5,6 +5,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { ElicitRequestSchema, ElicitResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -13,6 +14,93 @@ import { downloadOutputFile, officialDownloadUrl, redact } from "./cloud.js";
 import { placeVariantsJsx } from "./jsxlib.js";
 
 export const CLOUD_MCP_URL = "https://cloud.comfy.org/mcp";
+
+// Advertised to Cloud so a paid run raises elicitation/create.
+// Form mode is the spend dialog. An empty object would also mean form, but
+// this SDK only sends the dialog when `form` is present.
+export const CLOUD_CLIENT_CAPABILITIES = {
+  elicitation: { form: {} },
+};
+
+export const SPEND_DIALOG_NOTE = "A paid run shows a confirmation dialog to the user.";
+
+const SPEND_FLAG = /^(confirm|confirm_spend)$/;
+
+export function formElicitationSupported(capabilities) {
+  const elicitation = capabilities?.elicitation;
+  if (!elicitation || typeof elicitation !== "object") return false;
+  const hasForm = Object.prototype.hasOwnProperty.call(elicitation, "form");
+  const hasUrl = Object.prototype.hasOwnProperty.call(elicitation, "url");
+  // An empty elicitation object means form mode (MCP backwards compatibility).
+  return hasForm || !hasUrl;
+}
+
+export function urlElicitationSupported(capabilities) {
+  const elicitation = capabilities?.elicitation;
+  return Boolean(elicitation && Object.prototype.hasOwnProperty.call(elicitation, "url"));
+}
+
+function elicitationSession(upstream) {
+  if (!upstream) return null;
+  if (typeof upstream.elicitInput === "function" && typeof upstream.getClientCapabilities === "function") {
+    return upstream;
+  }
+  const inner = upstream.server;
+  if (inner && typeof inner.elicitInput === "function" && typeof inner.getClientCapabilities === "function") {
+    return inner;
+  }
+  return null;
+}
+
+function modeOf(params) {
+  return params?.mode === "url" ? "url" : "form";
+}
+
+function unsupportedElicitation(err) {
+  const message = String(err?.message || err || "");
+  return /does not support/i.test(message) && /elicitation/i.test(message);
+}
+
+/**
+ * Forward Cloud's elicitation/create to the bridge's own MCP session
+ * (Claude Code). The user's accept, decline, or cancel — including content —
+ * goes back to Cloud unchanged. No elicitation support means decline.
+ */
+export async function forwardElicitation(upstream, request) {
+  const session = elicitationSession(upstream);
+  const capabilities = session?.getClientCapabilities?.() ?? null;
+  const params = request?.params;
+  const mode = modeOf(params);
+  const supported = mode === "url" ? urlElicitationSupported(capabilities) : formElicitationSupported(capabilities);
+  if (!session || !params || typeof params !== "object" || !supported) {
+    return { action: "decline" };
+  }
+  try {
+    const explicit = mode === "url" ? capabilities.elicitation.url : capabilities.elicitation.form;
+    // This SDK's elicitInput requires the explicit form/url key. A bare
+    // `elicitation: {}` is still form support, so send elicitation/create.
+    if (explicit) return await session.elicitInput(params);
+    if (mode === "form" && typeof session.request === "function") {
+      return await session.request({ method: "elicitation/create", params }, ElicitResultSchema);
+    }
+    return { action: "decline" };
+  } catch (err) {
+    if (unsupportedElicitation(err)) return { action: "decline" };
+    throw err;
+  }
+}
+
+export function withoutAgentSpendConsent(text) {
+  const raw = String(text ?? "");
+  if (!raw) return raw;
+  const sentences = raw.split(/(?<=\.)\s+/);
+  const kept = sentences.filter((sentence) => {
+    const setsFlag = /\b(?:set|pass|pre-approve|preapprove)\b/i.test(sentence);
+    const namesFlag = /\bconfirm(?:[_-]spend)?\b/i.test(sentence);
+    return !(setsFlag && namesFlag);
+  });
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+}
 
 export const PAID_TOOL_NAMES = new Set([
   "run_template",
@@ -47,8 +135,13 @@ export function proxyInputSchema(remote) {
   const props = remote?.properties || {};
   const shape = {};
   for (const [key, spec] of Object.entries(props)) {
+    if (SPEND_FLAG.test(key)) {
+      shape[key] = z.boolean().optional().describe(SPEND_DIALOG_NOTE);
+      continue;
+    }
     let field = z.any();
-    if (spec?.description) field = field.describe(String(spec.description));
+    const description = withoutAgentSpendConsent(spec?.description || "");
+    if (description) field = field.describe(description);
     if (!remote?.required?.includes(key)) field = field.optional();
     shape[key] = field;
   }
@@ -110,12 +203,14 @@ export function templateNameFrom(result) {
 }
 
 export class CloudMcpClient {
-  constructor({ url = CLOUD_MCP_URL, apiKey, client, tools, fetchImpl } = {}) {
+  constructor({ url = CLOUD_MCP_URL, apiKey, client, tools, fetchImpl, upstream, transport } = {}) {
     this.url = url || CLOUD_MCP_URL;
     this.apiKey = apiKey || "";
     this.client = client || null;
     this.tools = tools || [];
     this.fetchImpl = fetchImpl || globalThis.fetch;
+    this.upstream = upstream || null;
+    this.transport = transport || null;
     this.paid = Promise.resolve();
   }
 
@@ -131,15 +226,22 @@ export class CloudMcpClient {
       }
       return this.tools;
     }
-    if (!this.apiKey) {
-      const err = new Error("COMFY_CLOUD_API_KEY is not set. The official Comfy Cloud MCP at https://cloud.comfy.org/mcp needs it as the X-API-Key header.");
-      err.code = "MISSING_KEY";
-      throw err;
+    let transport = this.transport;
+    if (!transport) {
+      if (!this.apiKey) {
+        const err = new Error("COMFY_CLOUD_API_KEY is not set. The official Comfy Cloud MCP at https://cloud.comfy.org/mcp needs it as the X-API-Key header.");
+        err.code = "MISSING_KEY";
+        throw err;
+      }
+      transport = new StreamableHTTPClientTransport(new URL(this.url), {
+        requestInit: { headers: { "X-API-Key": this.apiKey } },
+      });
     }
-    const transport = new StreamableHTTPClientTransport(new URL(this.url), {
-      requestInit: { headers: { "X-API-Key": this.apiKey } },
-    });
-    const client = new Client({ name: "comfy-ae-bridge", version: "0.1.0" });
+    const client = new Client(
+      { name: "comfy-ae-bridge", version: "0.1.1" },
+      { capabilities: CLOUD_CLIENT_CAPABILITIES },
+    );
+    client.setRequestHandler(ElicitRequestSchema, (request) => forwardElicitation(this.upstream, request));
     await client.connect(transport);
     this.client = client;
     this.transport = transport;
@@ -193,7 +295,7 @@ export function registerOfficialTools(server, session) {
     const paid = PAID_TOOL_NAMES.has(tool.name);
     server.registerTool(localName, {
       title: tool.title || tool.name,
-      description: SELF + (paid ? "Runs one at a time so paid Cloud calls are not cancelled. client_os must be darwin, win32, or linux; macos is sent as darwin. Confirm spend before a paid run. " : "") + (tool.description || tool.name),
+      description: SELF + (paid ? `Runs one at a time so paid Cloud calls are not cancelled. client_os must be darwin, win32, or linux; macos is sent as darwin. ${SPEND_DIALOG_NOTE} ` : "") + (withoutAgentSpendConsent(tool.description || "") || tool.name),
       inputSchema: proxyInputSchema(tool.inputSchema),
     }, async (args) => {
       try {
