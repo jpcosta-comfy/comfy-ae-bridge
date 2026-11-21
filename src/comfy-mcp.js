@@ -241,6 +241,13 @@ export class CloudMcpClient {
       { name: "comfy-ae-bridge", version: "0.1.1" },
       { capabilities: CLOUD_CLIENT_CAPABILITIES },
     );
+    // UPGRADE WARNING: this handler covers the 2025 elicitation wire
+    // (server-to-client `elicitation/create`, negotiated as protocol 2025-11-25).
+    // If an MCP SDK bump negotiates protocol 2026-07-28 or later, Cloud instead
+    // returns the spend dialog as an `input_required` tool result carrying a
+    // `requestState` the caller must echo on a retry. This handler then stops
+    // firing silently, so handle that path (and keep tests for it) before upgrading,
+    // or the agent could end up as the only consent step for paid runs again.
     client.setRequestHandler(ElicitRequestSchema, (request) => forwardElicitation(this.upstream, request));
     await client.connect(transport);
     this.client = client;
