@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "comfy-ae-bridge": {
+      "type": "http",
+      "url": "https://YOUR_RELAY_HOST/mcp/YOUR_PAIRING_TOKEN"
+    }
+  }
+}

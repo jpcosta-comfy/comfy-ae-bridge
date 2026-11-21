@@ -1,0 +1,35 @@
+{
+  "name": "comfy-ae-bridge",
+  "displayName": "Comfy AE Bridge",
+  "description": "One local server: official Comfy Cloud generation plus Adobe After Effects. No panel and no second connector.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": {
+    "name": "JP Costa",
+    "url": "https://comfy.org"
+  },
+  "keywords": [
+    "after-effects",
+    "comfy",
+    "motion-design",
+    "mcp"
+  ],
+  "userConfig": {
+    "COMFY_CLOUD_API_KEY": {
+      "type": "string",
+      "title": "Comfy Cloud API key",
+      "description": "From platform.comfy.org/profile/api-keys. Starts with comfyui-. Sent only as the X-API-Key to https://cloud.comfy.org/mcp.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "mcpServers": {
+    "comfy-ae-bridge": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/src/stdio.js"],
+      "env": {
+        "COMFY_CLOUD_API_KEY": "${user_config.COMFY_CLOUD_API_KEY}"
+      }
+    }
+  }
+}

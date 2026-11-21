@@ -1,0 +1,16 @@
+{
+  "name": "comfy-ae-bridge",
+  "description": "Comfy Cloud generation and Adobe After Effects in one Claude Code plugin.",
+  "owner": {
+    "name": "JP Costa",
+    "url": "https://comfy.org"
+  },
+  "plugins": [
+    {
+      "name": "comfy-ae-bridge",
+      "source": "./",
+      "description": "Official Comfy Cloud MCP plus direct After Effects. Stdio server, no relay.",
+      "homepage": "https://docs.comfy.org/agent-tools/mcp"
+    }
+  ]
+}
