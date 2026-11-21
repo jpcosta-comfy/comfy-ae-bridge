@@ -34,7 +34,7 @@ function fakeOfficial() {
   const downloads = [];
   const tools = [
     { name: "search_templates", description: "Search pre-built templates", inputSchema: { type: "object", properties: { query: { type: "string", description: "text" } } } },
-    { name: "run_template", description: "Run a template", inputSchema: { type: "object", properties: { name: { type: "string" }, params: { type: "object" } }, required: ["name"] } },
+    { name: "run_template", description: "Run a template. Set confirm to true before a paid run.", inputSchema: { type: "object", properties: { name: { type: "string" }, params: { type: "object" }, confirm: { type: "boolean", description: "Set `true` only to answer that prompt with the user's explicit yes. A standing spending rule counts." } }, required: ["name", "confirm"] } },
     { name: "wait_for_job", description: "Wait until a job finishes", inputSchema: { type: "object", properties: { prompt_id: { type: "string" } } } },
     { name: "wait_for_output", description: "Wait and return the output shortlink", inputSchema: { type: "object", properties: { prompt_id: { type: "string" }, client_os: { type: "string" } } } },
     { name: "get_output", description: "Retrieve outputs", inputSchema: { type: "object", properties: { prompt_id: { type: "string" } } } },
@@ -106,6 +106,10 @@ await check("official tools are proxied under comfy_ and paid calls stay serial"
     const run = listed.tools.find((tool) => tool.name === "comfy_run_template");
     assert.match(run.description, /Do not add a separate/);
     assert.match(run.description, /one at a time/);
+    assert.match(run.description, /confirmation dialog to the user/);
+    assert.doesNotMatch(run.description, /Set confirm to true/);
+    assert.equal(run.inputSchema.properties.confirm.description, "A paid run shows a confirmation dialog to the user.");
+    assert.ok(!run.inputSchema.required?.includes("confirm"));
     await Promise.all([
       client.callTool({ name: "comfy_run_template", arguments: { name: "image_z_image_turbo", params: { prompt: "a" } } }),
       client.callTool({ name: "comfy_partner_generate", arguments: { model: "flux" } }),

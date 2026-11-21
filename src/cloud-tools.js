@@ -330,6 +330,7 @@ export async function registerGeneration(server, bridge, options = {}) {
     const session = options.mcpSession || new CloudMcpClient({
       apiKey: process.env.COMFY_CLOUD_API_KEY,
       url: process.env.COMFY_CLOUD_MCP_URL,
+      upstream: server,
     });
     if (!options.mcpSession) {
       await Promise.race([

@@ -21,7 +21,7 @@ Talk to the user in plain words. Do the tool work yourself. At the end, name the
 2. `comfy_get_template_schema` on the chosen name before `comfy_run_template`.
 3. `client_os` is `darwin`, `win32`, or `linux`. This machine's value is `process.platform`. Never send `macos`, `mac`, or `osx`. The bridge rewrites those to `darwin`, but you should send `darwin` yourself.
 4. Generation width and height must be multiples of 16. If the target comp is 1920×1080, generate at 1920×1088, then fit and center into the comp. The bridge rounds up when you pass the comp size to `ae_generate_and_place`.
-5. Paid tools (`comfy_run_template`, `comfy_submit_workflow`, `comfy_partner_generate`, and the other `comfy_generate_*` tools) run one at a time. Do not fire several in parallel. Tell the user what will be spent, and set the tool's confirm-spend flag when the schema has one, before the call.
+5. Paid tools (`comfy_run_template`, `comfy_submit_workflow`, `comfy_partner_generate`, and the other `comfy_generate_*` tools) run one at a time. Do not fire several in parallel. A paid run shows a confirmation dialog to the user.
 6. `ae_generate_and_place` is the one-shot: official `run_template` or `submit_workflow`, then `wait_for_output` or `wait_for_job` and `get_output`. Download the URL or `/api/s/...` shortlink that tool returns. Do not assume `/api/v2/assets/{id}/content` when a shortlink is present.
 7. Pass `output_dir` as a folder the user chose. Never write renders or downloads onto the system disk by default (`/` or a full volume). If they did not name a folder, ask, or use a folder next to the `.aep` only when `projectInfo.saved` is true.
 

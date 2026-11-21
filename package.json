@@ -1,6 +1,6 @@
 {
   "name": "comfy-ae-bridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "MCP bridge that lets a chat agent drive Adobe After Effects. Default local transport talks to AE directly (no CEP panel). A panel and a hosted relay remain optional.",
   "type": "module",
@@ -17,7 +17,7 @@
     "start": "node src/relay.js",
     "relay": "node src/relay.js",
     "stdio": "node src/stdio.js",
-    "test": "node test/unit.mjs && node test/polish.test.mjs && node test/direct.test.mjs && node test/cloud.test.mjs && node test/mcp-proxy.test.mjs && node test/smoke.mjs",
+    "test": "node test/unit.mjs && node test/polish.test.mjs && node test/direct.test.mjs && node test/cloud.test.mjs && node test/mcp-proxy.test.mjs && node test/elicitation.test.mjs && node test/smoke.mjs",
     "pack:mac": "bash scripts/pack-mac-installer.sh"
   },
   "dependencies": {

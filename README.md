@@ -50,7 +50,7 @@ Two one-time prompts:
 
 That one server generates on Comfy Cloud and places the files in After Effects. If the key is missing, generation returns the install line above.
 
-Generation talks to the official Comfy Cloud MCP at `https://cloud.comfy.org/mcp`, sending the key as the `X-API-Key` header. Interactive clients can use OAuth instead; this process has no browser, so the API key is the auth that works. Official tools show up here with a `comfy_` prefix (`comfy_search_templates`, `comfy_run_template`, `comfy_partner_generate`, `comfy_wait_for_job`, `comfy_get_output`, and the rest of that server's list). Paid runs are one at a time. `COMFY_GEN_BACKEND=mcp` requires that MCP. `rest` forces the built-in HTTP client. `auto` (the default) uses the official MCP and falls back to REST only if it cannot be reached.
+Generation talks to the official Comfy Cloud MCP at `https://cloud.comfy.org/mcp`, sending the key as the `X-API-Key` header. Interactive clients can use OAuth instead; this process has no browser, so the API key is the auth that works. Official tools show up here with a `comfy_` prefix (`comfy_search_templates`, `comfy_run_template`, `comfy_partner_generate`, `comfy_wait_for_job`, `comfy_get_output`, and the rest of that server's list). Paid runs are one at a time. A paid run shows a confirmation dialog to the user. `COMFY_GEN_BACKEND=mcp` requires that MCP. `rest` forces the built-in HTTP client. `auto` (the default) uses the official MCP and falls back to REST only if it cannot be reached.
 
 `COMFY_AE_OUTPUT_DIR` sets where downloads land. Otherwise `ae_generate_and_place` saves them in `comfy-generations` next to the open `.aep`.
 
